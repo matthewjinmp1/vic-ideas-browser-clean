@@ -13,6 +13,12 @@ data/*.db
 data/*.sqlite
 data/*.sqlite3
 analysis/golden_return_sample.tsv
+analysis/*.csv
+analysis/*.tsv
+analysis/*.xlsx
+analysis/*.xls
+analysis/*.json
+analysis/*.svg
 analysis/google_sheet_idea_returns.csv
 analysis/google_sheet_idea_returns.json
 outputs/

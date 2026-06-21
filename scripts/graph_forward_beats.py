@@ -87,6 +87,48 @@ def write_csv_from_tsv(tsv_path, csv_path):
         writer.writerows(reader)
 
 
+def write_wide_csv(summaries, path):
+    headers = [
+        "forward_quarters",
+        "forward_years",
+        "all_long_beat_pct",
+        "all_short_beat_pct",
+        "winner_long_beat_pct",
+        "winner_short_beat_pct",
+        "all_long_count",
+        "all_short_count",
+        "winner_long_count",
+        "winner_short_count",
+        "all_long_avg_years_used",
+        "all_short_avg_years_used",
+        "winner_long_avg_years_used",
+        "winner_short_avg_years_used",
+    ]
+    groups = [
+        ("All ideas", "Long"),
+        ("All ideas", "Short"),
+        ("Contest winners", "Long"),
+        ("Contest winners", "Short"),
+    ]
+    with path.open("w", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(headers)
+        for summary in summaries:
+            group_rows = [summary["groups"][group] for group in groups]
+            writer.writerow(
+                [
+                    summary["forward_quarters"],
+                    f"{summary['forward_quarters'] / 4:.2f}",
+                    *[
+                        fmt(group["time_weighted_annual_beat_pct"])
+                        for group in group_rows
+                    ],
+                    *[int(group["with_beat"]) for group in group_rows],
+                    *[fmt(group["avg_years_used"]) for group in group_rows],
+                ]
+            )
+
+
 def nice_step(raw_step):
     if raw_step <= 0:
         return 1
@@ -230,13 +272,16 @@ def main():
     summaries = calculate_forward_beat_summaries(args.vic_db, args.quickfs_db, quarters)
     tsv_path = args.output_dir / "forward_beat_curves.tsv"
     csv_path = args.output_dir / "forward_beat_curves.csv"
+    wide_csv_path = args.output_dir / "forward_beat_curves_wide.csv"
     svg_path = args.output_dir / "forward_beat_curves.svg"
     write_tsv(summaries, tsv_path)
     write_csv_from_tsv(tsv_path, csv_path)
+    write_wide_csv(summaries, wide_csv_path)
     write_svg(summaries, svg_path)
 
     print(f"wrote {tsv_path}")
     print(f"wrote {csv_path}")
+    print(f"wrote {wide_csv_path}")
     print(f"wrote {svg_path}")
     print()
     final_years = summaries[-1]["forward_quarters"] / 4

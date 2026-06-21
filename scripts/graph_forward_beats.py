@@ -166,7 +166,8 @@ def write_svg(summaries, path):
             f'<text x="{left - 12}" y="{y + 4:.2f}" text-anchor="end" font-family="Arial, sans-serif" font-size="12" fill="#56606b">{tick:+.0f}%</text>'
         )
 
-    for year in range(1, 6):
+    max_year = math.ceil(x_max)
+    for year in range(1, max_year + 1):
         x = sx(year)
         svg.append(
             f'<line x1="{x:.2f}" y1="{top}" x2="{x:.2f}" y2="{top + plot_height}" stroke="#eee9e1" stroke-width="1"/>'
@@ -227,7 +228,8 @@ def main():
     print(f"wrote {tsv_path}")
     print(f"wrote {svg_path}")
     print()
-    print("Final 5-year time-weighted annual beats:")
+    final_years = summaries[-1]["forward_quarters"] / 4
+    print(f"Final {final_years:g}-year time-weighted annual beats:")
     final = summaries[-1]
     for scope, side in GROUPS:
         group = final["groups"][(scope, side)]

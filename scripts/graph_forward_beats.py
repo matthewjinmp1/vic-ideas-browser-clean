@@ -95,6 +95,10 @@ def write_wide_csv(summaries, path):
         "all_short_beat_pct",
         "winner_long_beat_pct",
         "winner_short_beat_pct",
+        "all_long_annual_return_pct",
+        "all_short_annual_return_pct",
+        "winner_long_annual_return_pct",
+        "winner_short_annual_return_pct",
         "all_long_count",
         "all_short_count",
         "winner_long_count",
@@ -121,6 +125,10 @@ def write_wide_csv(summaries, path):
                     f"{summary['forward_quarters'] / 4:.2f}",
                     *[
                         fmt(group["time_weighted_annual_beat_pct"])
+                        for group in group_rows
+                    ],
+                    *[
+                        fmt(group["avg_idea_annual_return_pct"])
                         for group in group_rows
                     ],
                     *[int(group["with_beat"]) for group in group_rows],

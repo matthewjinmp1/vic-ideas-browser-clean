@@ -95,6 +95,8 @@ const navRows = [
     "Cash",
     "Active Positions",
     "New Positions",
+    "Exited Positions",
+    "Rebalanced",
     "Total Positions Added",
   ],
 ];
@@ -107,13 +109,15 @@ for (const [name, result] of Object.entries(payload.portfolios)) {
       row.cash,
       row.active_positions,
       row.new_positions,
+      row.exited_positions,
+      row.rebalanced ? "Yes" : "No",
       row.total_positions_added,
     ]);
   }
 }
 writeMatrix(nav, navRows);
 styleSheet(nav, navRows.length, navRows[0].length, [], [2, 3]);
-[30, 12, 16, 14, 14, 14, 18].forEach((width, index) => {
+[30, 12, 16, 14, 14, 14, 14, 12, 18].forEach((width, index) => {
   nav.getRangeByIndexes(0, index, navRows.length, 1).format.columnWidth = width;
 });
 
@@ -168,10 +172,13 @@ const noteRows = [
   ],
   [
     "Rebalance rule",
-    "At each new idea start period, all currently active positions plus new ideas are rebalanced to equal dollar weights.",
+    "At each new idea start period, all currently active positions plus new ideas are rebalanced to equal dollar weights. Exits also trigger immediate rebalancing across remaining active positions.",
   ],
   ["Entry", "A position enters at the first available local QuickFS period on or after the idea month."],
-  ["Exit", "A position exits to cash at its last available local QuickFS period. Cash waits until the next rebalance."],
+  [
+    "Exit",
+    "A position exits at its last available local QuickFS period. If other positions remain active, proceeds are immediately rebalanced into them. If none remain, proceeds stay in cash until the next calculable idea enters.",
+  ],
   ["Dividends", "Dividends are included in period returns when the stock has a new available price period."],
   ["Missing data", "Rows without usable local QuickFS start/end data are skipped."],
   [

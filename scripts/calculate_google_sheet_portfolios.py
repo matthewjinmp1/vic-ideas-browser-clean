@@ -158,6 +158,7 @@ def simulate_expanding_equal_weight_portfolio(
     start_period = None
 
     for period in periods:
+        exited_positions = 0
         for position in list(active):
             period_return = position_period_return(position, period)
             if period_return is None:
@@ -166,6 +167,7 @@ def simulate_expanding_equal_weight_portfolio(
                 cash += position["value"]
                 position["final_value"] = position["value"]
                 closed_positions.append(position)
+                exited_positions += 1
                 continue
             position["value"] *= 1 + period_return
             if period in position["price_map"]:
@@ -177,17 +179,23 @@ def simulate_expanding_equal_weight_portfolio(
                 cash += position["value"]
                 position["final_value"] = position["value"]
                 closed_positions.append(position)
+                exited_positions += 1
 
         new_positions = positions_by_start.get(period, [])
+        rebalanced = False
         if new_positions:
             active.extend(new_positions)
             cash = rebalance_equal_weight(active, cash)
+            rebalanced = True
             additions_count += len(new_positions)
             if start_period is None:
                 start_period = period
             for position in active:
                 if position["initial_weight"] is None:
                     position["initial_weight"] = position["value"]
+        elif exited_positions and active:
+            cash = rebalance_equal_weight(active, cash)
+            rebalanced = True
 
         portfolio_value = cash + sum(position["value"] for position in active)
         nav_rows.append(
@@ -197,6 +205,8 @@ def simulate_expanding_equal_weight_portfolio(
                 "cash": cash,
                 "active_positions": len(active),
                 "new_positions": len(new_positions),
+                "exited_positions": exited_positions,
+                "rebalanced": rebalanced,
                 "total_positions_added": additions_count,
             }
         )
@@ -302,8 +312,9 @@ def main():
         "method": (
             "Expanding equal-weight long portfolio. Starts with initial capital in the first "
             "calculable idea. On each new idea start period, rebalances all active positions "
-            "equally. Positions exit to cash at their last local QuickFS period; cash is "
-            "reinvested at the next addition/rebalance."
+            "equally. When positions exit, sale proceeds are immediately rebalanced across "
+            "remaining active positions. If no active positions remain, proceeds stay in cash "
+            "until the next calculable idea enters."
         ),
         "portfolios": portfolios,
     }

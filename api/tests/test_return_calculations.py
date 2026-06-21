@@ -358,6 +358,53 @@ class ReturnPipelineTests(unittest.TestCase):
         self.assert_close(result["nav_rows"][1]["portfolio_value"], 100)
         self.assert_close(result["summary"]["final_value"], 150)
 
+    def test_expanding_equal_weight_portfolio_rebalances_immediately_on_exit(self):
+        quickfs = {
+            "EXIT": [
+                ("2020-03", 100, 0),
+                ("2020-06", 100, 0),
+            ],
+            "KEEP": [
+                ("2020-03", 100, 0),
+                ("2020-06", 100, 0),
+                ("2020-09", 200, 0),
+            ],
+        }
+        ideas = [
+            {
+                "source_sheet": "Group",
+                "source_row": 2,
+                "ticker": "EXIT",
+                "matched_ticker": "EXIT",
+                "company_name": "Exit",
+                "sheet_date": "2020-03-15",
+                "start_period": "2020-03",
+                "end_period": "2020-06",
+            },
+            {
+                "source_sheet": "Group",
+                "source_row": 3,
+                "ticker": "KEEP",
+                "matched_ticker": "KEEP",
+                "company_name": "Keep",
+                "sheet_date": "2020-03-15",
+                "start_period": "2020-03",
+                "end_period": "2020-09",
+            },
+        ]
+
+        result = calculate_google_sheet_portfolios.simulate_expanding_equal_weight_portfolio(
+            ideas,
+            quickfs,
+            initial_capital=100,
+        )
+
+        self.assertEqual(result["nav_rows"][1]["period"], "2020-06")
+        self.assertEqual(result["nav_rows"][1]["exited_positions"], 1)
+        self.assertTrue(result["nav_rows"][1]["rebalanced"])
+        self.assertEqual(result["nav_rows"][1]["cash"], 0)
+        self.assert_close(result["summary"]["final_value"], 200)
+
     def insert_quickfs_row(
         self,
         conn,

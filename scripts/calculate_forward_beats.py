@@ -115,6 +115,11 @@ def calculate_forward_beat_summary(vic_db, quickfs_db, forward_quarters=4):
     if forward_quarters <= 0:
         raise ValueError("forward_quarters must be greater than zero")
 
+    context = load_forward_beat_context(vic_db, quickfs_db)
+    return calculate_forward_beat_summary_from_context(context, forward_quarters)
+
+
+def load_forward_beat_context(vic_db, quickfs_db):
     quickfs = load_quickfs_series(quickfs_db)
     conn = sqlite3.connect(vic_db)
     sp_periods, sp_values = load_sp500_series(conn)
@@ -129,6 +134,22 @@ def calculate_forward_beat_summary(vic_db, quickfs_db, forward_quarters=4):
     ).fetchall()
     conn.close()
 
+    return {
+        "quickfs": quickfs,
+        "sp_periods": sp_periods,
+        "sp_values": sp_values,
+        "ideas": ideas,
+    }
+
+
+def calculate_forward_beat_summary_from_context(context, forward_quarters):
+    if forward_quarters <= 0:
+        raise ValueError("forward_quarters must be greater than zero")
+
+    quickfs = context["quickfs"]
+    sp_periods = context["sp_periods"]
+    sp_values = context["sp_values"]
+    ideas = context["ideas"]
     stats = {group: empty_group_stats() for group in GROUPS}
     skipped = defaultdict(int)
 
@@ -197,6 +218,14 @@ def calculate_forward_beat_summary(vic_db, quickfs_db, forward_quarters=4):
         "groups": {group: finalize_group(stats[group]) for group in GROUPS},
         "skipped": dict(skipped),
     }
+
+
+def calculate_forward_beat_summaries(vic_db, quickfs_db, forward_quarters_list):
+    context = load_forward_beat_context(vic_db, quickfs_db)
+    return [
+        calculate_forward_beat_summary_from_context(context, forward_quarters)
+        for forward_quarters in forward_quarters_list
+    ]
 
 
 def format_pct(value):

@@ -91,8 +91,10 @@ def idea_month(idea_date):
 
 
 def start_index(series, target_month):
-    eligible = [index for index, row in enumerate(series) if row[0] <= target_month]
-    return eligible[-1] if eligible else None
+    for index, row in enumerate(series):
+        if row[0] >= target_month:
+            return index
+    return None
 
 
 def calculate_return(series, start):
@@ -177,6 +179,7 @@ def main():
     computed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     note = (
         "Approximate return from local QuickFS quarter-end prices plus dividends; "
+        "start period is the first available QuickFS period on or after the idea month; "
         "annual return is compounded CAGR when the directional return has a positive growth factor."
     )
     rows = []

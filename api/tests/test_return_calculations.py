@@ -75,6 +75,19 @@ class ReturnCalculationTests(unittest.TestCase):
         self.assertEqual(value_at_or_before(periods, values, "2020-06"), 121)
         self.assertIsNone(value_at_or_before(periods, values, "2019-12"))
 
+    def test_quickfs_start_index_uses_first_period_on_or_after_idea_month(self):
+        series = [
+            ("2020-03", 100, 0),
+            ("2020-06", 110, 0),
+            ("2020-09", 120, 0),
+        ]
+
+        self.assertEqual(start_index(series, "2020-01"), 0)
+        self.assertEqual(start_index(series, "2020-03"), 0)
+        self.assertEqual(start_index(series, "2020-04"), 1)
+        self.assertEqual(start_index(series, "2020-06"), 1)
+        self.assertIsNone(start_index(series, "2020-10"))
+
     def test_quickfs_total_return_includes_only_dividends_after_start_through_end(self):
         series = [
             ("2020-03", 100, 10),
@@ -180,7 +193,7 @@ class ReturnPipelineTests(unittest.TestCase):
                 [
                     ("long-idea", "ABC", "2020-03-15 12:00:00", 0),
                     ("short-idea", "BRK.B", "2020-03-15 12:00:00", 1),
-                    ("too-early", "XYZ", "2019-12-15 12:00:00", 0),
+                    ("starts-at-first-future-period", "XYZ", "2019-12-15 12:00:00", 0),
                     ("too-late", "ABC", "2021-03-15 12:00:00", 0),
                 ],
             )
@@ -241,7 +254,10 @@ class ReturnPipelineTests(unittest.TestCase):
             }
             conn.close()
 
-            self.assertEqual(set(rows), {"long-idea", "short-idea"})
+            self.assertEqual(
+                set(rows),
+                {"long-idea", "short-idea", "starts-at-first-future-period"},
+            )
             long_row = rows["long-idea"]
             self.assertEqual(long_row[3], "2020-03")
             self.assertEqual(long_row[4], "2021-03")
@@ -256,6 +272,10 @@ class ReturnPipelineTests(unittest.TestCase):
             self.assert_close(short_row[6], -20)
             self.assert_close(short_row[7], 20)
             self.assert_close(short_row[8], 20)
+
+            future_start_row = rows["starts-at-first-future-period"]
+            self.assertEqual(future_start_row[3], "2020-03")
+            self.assertEqual(future_start_row[4], "2021-03")
 
     def test_sp500_benchmark_script_uses_matching_periods_and_compounded_excess(self):
         with tempfile.TemporaryDirectory() as directory:

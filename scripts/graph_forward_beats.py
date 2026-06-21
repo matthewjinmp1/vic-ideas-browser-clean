@@ -214,7 +214,7 @@ def write_svg(summaries, path):
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
         '<rect width="100%" height="100%" fill="#fbfaf7"/>',
         f'<text x="{left}" y="34" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#1f2933">Forward Annual Beat vs S&amp;P 500 TR</text>',
-        f'<text x="{left}" y="58" font-family="Arial, sans-serif" font-size="13" fill="#5b6572">Time-weighted annualized outperformance, windows from 1 quarter to 5 years</text>',
+        f'<text x="{left}" y="58" font-family="Arial, sans-serif" font-size="13" fill="#5b6572">Time-weighted annualized outperformance, windows from {x_min:g} to {x_max:g} years</text>',
     ]
 
     for tick in axis_ticks(y_min, y_max):

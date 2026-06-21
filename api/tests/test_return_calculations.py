@@ -433,6 +433,138 @@ class ReturnPipelineTests(unittest.TestCase):
         self.assert_close(summary["annualized_beat_pct"], 21.42135623730952)
         self.assert_close(summary["total_beat_pct"], 56)
 
+    def test_expanding_equal_weight_portfolio_golden_edge_case_scenario(self):
+        quickfs = {
+            "AAA": [
+                ("2020-03", 100, 0),
+                ("2020-06", 120, 5),
+                ("2020-12", 180, 0),
+            ],
+            "BBB": [
+                ("2020-06", 50, 0),
+                ("2020-09", 25, 0),
+            ],
+            "CCC": [
+                ("2020-09", 10, 0),
+                ("2020-12", 20, 1),
+            ],
+            "BAD": [
+                ("2020-03", 100, 0),
+            ],
+        }
+        ideas = [
+            {
+                "source_sheet": "Golden",
+                "source_row": 2,
+                "ticker": "AAA",
+                "matched_ticker": "AAA",
+                "company_name": "Dividend Winner",
+                "sheet_date": "2020-03-15",
+                "start_period": "2020-03",
+                "end_period": "2020-12",
+            },
+            {
+                "source_sheet": "Golden",
+                "source_row": 3,
+                "ticker": "BBB",
+                "matched_ticker": "BBB",
+                "company_name": "Duplicate Loser",
+                "sheet_date": "2020-06-15",
+                "start_period": "2020-06",
+                "end_period": "2020-09",
+            },
+            {
+                "source_sheet": "Golden",
+                "source_row": 4,
+                "ticker": "BBB",
+                "matched_ticker": "BBB",
+                "company_name": "Duplicate Loser",
+                "sheet_date": "2020-06-15",
+                "start_period": "2020-06",
+                "end_period": "2020-09",
+            },
+            {
+                "source_sheet": "Golden",
+                "source_row": 5,
+                "ticker": "CCC",
+                "matched_ticker": "CCC",
+                "company_name": "Late Winner",
+                "sheet_date": "2020-09-15",
+                "start_period": "2020-09",
+                "end_period": "2020-12",
+            },
+            {
+                "source_sheet": "Golden",
+                "source_row": 6,
+                "ticker": "MISS",
+                "matched_ticker": "",
+                "company_name": "Missing",
+                "sheet_date": "2020-09-15",
+                "start_period": "",
+                "end_period": "",
+            },
+            {
+                "source_sheet": "Golden",
+                "source_row": 7,
+                "ticker": "BAD",
+                "matched_ticker": "BAD",
+                "company_name": "No Holding Period",
+                "sheet_date": "2020-03-15",
+                "start_period": "2020-03",
+                "end_period": "2020-03",
+            },
+        ]
+
+        result = calculate_google_sheet_portfolios.simulate_expanding_equal_weight_portfolio(
+            ideas,
+            quickfs,
+            initial_capital=100,
+        )
+        nav_by_period = {row["period"]: row for row in result["nav_rows"]}
+
+        self.assertEqual(result["summary"]["ideas_included"], 4)
+        self.assertEqual(result["summary"]["ideas_skipped"], 2)
+        self.assertEqual(result["summary"]["duplicate_ticker_date_rows"], 1)
+        self.assertEqual(result["skipped"]["missing_return_data"], 1)
+        self.assertEqual(result["skipped"]["no_holding_period"], 1)
+
+        self.assert_close(nav_by_period["2020-03"]["portfolio_value"], 100)
+        self.assert_close(nav_by_period["2020-06"]["portfolio_value"], 125)
+        self.assertEqual(nav_by_period["2020-06"]["new_positions"], 2)
+        self.assertTrue(nav_by_period["2020-06"]["rebalanced"])
+        self.assert_close(nav_by_period["2020-09"]["portfolio_value"], 83.33333333333334)
+        self.assertEqual(nav_by_period["2020-09"]["exited_positions"], 2)
+        self.assertEqual(nav_by_period["2020-09"]["new_positions"], 1)
+        self.assertTrue(nav_by_period["2020-09"]["rebalanced"])
+        self.assert_close(nav_by_period["2020-12"]["portfolio_value"], 150)
+        self.assertEqual(nav_by_period["2020-12"]["exited_positions"], 2)
+        self.assertEqual(nav_by_period["2020-12"]["cash"], 150)
+
+        self.assert_close(result["summary"]["final_value"], 150)
+        self.assert_close(result["summary"]["total_return_pct"], 50)
+        self.assert_close(result["summary"]["years"], 0.75)
+
+        constituents = {
+            (row["ticker"], row["source_row"]): row for row in result["constituents"]
+        }
+        self.assert_close(constituents[("AAA", 2)]["initial_allocated_value"], 100)
+        self.assert_close(constituents[("AAA", 2)]["final_value"], 62.5)
+        self.assert_close(
+            constituents[("BBB", 3)]["initial_allocated_value"],
+            41.666666666666664,
+        )
+        self.assert_close(constituents[("BBB", 3)]["final_value"], 20.833333333333332)
+        self.assert_close(
+            constituents[("BBB", 4)]["initial_allocated_value"],
+            41.666666666666664,
+        )
+        self.assert_close(constituents[("BBB", 4)]["final_value"], 20.833333333333332)
+        self.assert_close(
+            constituents[("CCC", 5)]["initial_allocated_value"],
+            41.66666666666667,
+        )
+        self.assert_close(constituents[("CCC", 5)]["final_value"], 87.5)
+
     def insert_quickfs_row(
         self,
         conn,

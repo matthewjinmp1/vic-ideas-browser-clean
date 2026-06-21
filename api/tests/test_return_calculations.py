@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from scripts import calculate_sp500_benchmark
 from scripts import calculate_forward_beats
+from scripts import calculate_google_sheet_returns
 from scripts import calculate_total_returns
 from scripts import import_quickfs_latest_metrics
 from scripts.calculate_sp500_benchmark import (
@@ -111,6 +112,117 @@ class ReturnPipelineTests(unittest.TestCase):
 
     def make_db_path(self, directory, name):
         return Path(directory) / name
+
+    def test_google_sheet_match_uses_exact_ticker_date_and_link_title(self):
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(
+            """
+            CREATE TABLE companies (
+                ticker TEXT PRIMARY KEY,
+                company_name TEXT
+            );
+            CREATE TABLE ideas (
+                id TEXT PRIMARY KEY,
+                link TEXT,
+                company_id TEXT,
+                date TEXT,
+                is_short BOOLEAN,
+                is_contest_winner BOOLEAN
+            );
+            CREATE TABLE idea_total_returns (
+                idea_id TEXT PRIMARY KEY,
+                matched_ticker TEXT,
+                start_period TEXT,
+                end_period TEXT,
+                start_price REAL,
+                end_price REAL,
+                dividends REAL,
+                periods_held INTEGER,
+                stock_total_return_pct REAL,
+                idea_total_return_pct REAL,
+                annualized_idea_return_pct REAL,
+                benchmark_total_return_pct REAL,
+                benchmark_annualized_return_pct REAL,
+                excess_total_return_pct REAL,
+                excess_annualized_return_pct REAL
+            );
+            """
+        )
+        conn.execute("INSERT INTO companies VALUES (?, ?)", ("TSCO", "TESCO PLC "))
+        conn.execute(
+            """
+            INSERT INTO ideas (
+                id, link, company_id, date, is_short, is_contest_winner
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "tractor-supply-idea",
+                "https://www.valueinvestorsclub.com/idea/Tractor_Supply_Company/8212619875",
+                "TSCO",
+                "2001-02-07 12:59:00",
+                1,
+                0,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO ideas (
+                id, link, company_id, date, is_short, is_contest_winner
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "tesco-idea",
+                "https://www.valueinvestorsclub.com/idea/Tesco_plc/4567009379",
+                "TSCO",
+                "2011-04-05 19:14:00",
+                1,
+                0,
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO idea_total_returns (
+                idea_id, matched_ticker, start_period, end_period,
+                start_price, end_price, dividends, periods_held,
+                stock_total_return_pct, idea_total_return_pct,
+                annualized_idea_return_pct, benchmark_total_return_pct,
+                benchmark_annualized_return_pct, excess_total_return_pct,
+                excess_annualized_return_pct
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "tractor-supply-idea",
+                "TSCO",
+                "2002-03",
+                "2025-09",
+                1,
+                2,
+                0,
+                94,
+                100,
+                -100,
+                None,
+                50,
+                5,
+                50,
+                None,
+            ),
+        )
+
+        matches = calculate_google_sheet_returns.load_db_matches(conn)
+        exact = matches[("TSCO", "2001-02-07")][0]
+
+        self.assertEqual(exact["match_key"], "TSCO|2001-02-07")
+        self.assertEqual(exact["company_name"], "Tractor Supply Company")
+        self.assertEqual(exact["db_company_name"], "TESCO PLC ")
+        self.assertEqual(exact["direction"], "Long")
+        self.assertEqual(exact["vic_db_direction"], "Short")
+        self.assertEqual(exact["idea_total_return_pct"], 100)
+        self.assertNotIn(("TSCO", "2001-02-08"), matches)
+        conn.close()
 
     def insert_quickfs_row(
         self,

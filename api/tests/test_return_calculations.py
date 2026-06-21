@@ -13,6 +13,7 @@ from unittest.mock import patch
 from scripts import calculate_sp500_benchmark
 from scripts import calculate_forward_beats
 from scripts import calculate_google_sheet_returns
+from scripts import calculate_google_sheet_portfolios
 from scripts import calculate_total_returns
 from scripts import import_quickfs_latest_metrics
 from scripts.calculate_sp500_benchmark import (
@@ -223,6 +224,139 @@ class ReturnPipelineTests(unittest.TestCase):
         self.assertEqual(exact["idea_total_return_pct"], 100)
         self.assertNotIn(("TSCO", "2001-02-08"), matches)
         conn.close()
+
+    def test_expanding_equal_weight_portfolio_rebalances_when_new_ideas_arrive(self):
+        quickfs = {
+            "WIN": [
+                ("2020-03", 100, 0),
+                ("2020-06", 200, 0),
+                ("2020-09", 400, 0),
+            ],
+            "FLAT": [
+                ("2020-06", 100, 0),
+                ("2020-09", 100, 0),
+            ],
+        }
+        ideas = [
+            {
+                "source_sheet": "Group",
+                "source_row": 2,
+                "ticker": "WIN",
+                "matched_ticker": "WIN",
+                "company_name": "Winner",
+                "sheet_date": "2020-03-15",
+                "start_period": "2020-03",
+                "end_period": "2020-09",
+            },
+            {
+                "source_sheet": "Group",
+                "source_row": 3,
+                "ticker": "FLAT",
+                "matched_ticker": "FLAT",
+                "company_name": "Flat",
+                "sheet_date": "2020-06-15",
+                "start_period": "2020-06",
+                "end_period": "2020-09",
+            },
+        ]
+
+        result = calculate_google_sheet_portfolios.simulate_expanding_equal_weight_portfolio(
+            ideas,
+            quickfs,
+            initial_capital=100,
+        )
+
+        self.assertEqual(result["summary"]["ideas_included"], 2)
+        self.assert_close(result["nav_rows"][0]["portfolio_value"], 100)
+        self.assert_close(result["nav_rows"][1]["portfolio_value"], 200)
+        self.assertEqual(result["nav_rows"][1]["active_positions"], 2)
+        self.assert_close(result["nav_rows"][2]["portfolio_value"], 300)
+        self.assert_close(result["summary"]["total_return_pct"], 200)
+
+    def test_expanding_equal_weight_portfolio_tracks_duplicate_rows(self):
+        quickfs = {
+            "AAA": [
+                ("2020-03", 100, 0),
+                ("2020-06", 110, 0),
+            ],
+        }
+        ideas = [
+            {
+                "source_sheet": "Group",
+                "source_row": 2,
+                "ticker": "AAA",
+                "matched_ticker": "AAA",
+                "company_name": "AAA",
+                "sheet_date": "2020-03-15",
+                "start_period": "2020-03",
+                "end_period": "2020-06",
+            },
+            {
+                "source_sheet": "Group",
+                "source_row": 3,
+                "ticker": "AAA",
+                "matched_ticker": "AAA",
+                "company_name": "AAA",
+                "sheet_date": "2020-03-15",
+                "start_period": "2020-03",
+                "end_period": "2020-06",
+            },
+        ]
+
+        result = calculate_google_sheet_portfolios.simulate_expanding_equal_weight_portfolio(
+            ideas,
+            quickfs,
+            initial_capital=100,
+        )
+
+        self.assertEqual(result["summary"]["ideas_included"], 2)
+        self.assertEqual(result["summary"]["duplicate_ticker_date_rows"], 1)
+        self.assert_close(result["summary"]["final_value"], 110)
+
+    def test_expanding_equal_weight_portfolio_carries_positions_between_price_periods(self):
+        quickfs = {
+            "AAA": [
+                ("2020-03", 100, 0),
+                ("2020-09", 200, 0),
+            ],
+            "BBB": [
+                ("2020-06", 100, 0),
+                ("2020-09", 100, 0),
+            ],
+        }
+        ideas = [
+            {
+                "source_sheet": "Group",
+                "source_row": 2,
+                "ticker": "AAA",
+                "matched_ticker": "AAA",
+                "company_name": "AAA",
+                "sheet_date": "2020-03-15",
+                "start_period": "2020-03",
+                "end_period": "2020-09",
+            },
+            {
+                "source_sheet": "Group",
+                "source_row": 3,
+                "ticker": "BBB",
+                "matched_ticker": "BBB",
+                "company_name": "BBB",
+                "sheet_date": "2020-06-15",
+                "start_period": "2020-06",
+                "end_period": "2020-09",
+            },
+        ]
+
+        result = calculate_google_sheet_portfolios.simulate_expanding_equal_weight_portfolio(
+            ideas,
+            quickfs,
+            initial_capital=100,
+        )
+
+        self.assertEqual(result["summary"]["ideas_skipped"], 0)
+        self.assertEqual(result["nav_rows"][1]["period"], "2020-06")
+        self.assert_close(result["nav_rows"][1]["portfolio_value"], 100)
+        self.assert_close(result["summary"]["final_value"], 150)
 
     def insert_quickfs_row(
         self,

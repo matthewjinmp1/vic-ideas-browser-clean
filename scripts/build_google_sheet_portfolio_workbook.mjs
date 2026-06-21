@@ -53,6 +53,11 @@ const summaryRows = [
     "Final Value",
     "Total Return",
     "Annualized Return",
+    "S&P 500 TR Final Value",
+    "S&P 500 TR Total Return",
+    "S&P 500 TR Annual Return",
+    "Total Beat",
+    "Annualized Beat",
     "Start Period",
     "End Period",
     "Years",
@@ -70,6 +75,11 @@ for (const [name, result] of Object.entries(payload.portfolios)) {
     item.final_value,
     pct(item.total_return_pct),
     pct(item.annualized_return_pct),
+    item.sp500_final_value,
+    pct(item.sp500_total_return_pct),
+    pct(item.sp500_annualized_return_pct),
+    pct(item.total_beat_pct),
+    pct(item.annualized_beat_pct),
     item.start_period,
     item.end_period,
     item.years,
@@ -79,9 +89,9 @@ for (const [name, result] of Object.entries(payload.portfolios)) {
   ]);
 }
 writeMatrix(summary, summaryRows);
-styleSheet(summary, summaryRows.length, summaryRows[0].length, [3, 4], [1, 2]);
+styleSheet(summary, summaryRows.length, summaryRows[0].length, [3, 4, 6, 7, 8, 9], [1, 2, 5]);
 [
-  30, 16, 16, 14, 14, 12, 12, 10, 14, 14, 20,
+  30, 16, 16, 14, 14, 18, 16, 16, 14, 14, 12, 12, 10, 14, 14, 20,
 ].forEach((width, index) => {
   summary.getRangeByIndexes(0, index, summaryRows.length, 1).format.columnWidth = width;
 });
@@ -173,6 +183,10 @@ const noteRows = [
   [
     "Rebalance rule",
     "At each new idea start period, all currently active positions plus new ideas are rebalanced to equal dollar weights. Exits also trigger immediate rebalancing across remaining active positions.",
+  ],
+  [
+    "Benchmark",
+    "S&P 500 Total Return is measured from the portfolio's first calculable start period to its ending period. Beat is portfolio return minus S&P 500 Total Return over that same window.",
   ],
   ["Entry", "A position enters at the first available local QuickFS period on or after the idea month."],
   [

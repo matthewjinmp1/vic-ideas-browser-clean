@@ -405,6 +405,34 @@ class ReturnPipelineTests(unittest.TestCase):
         self.assertEqual(result["nav_rows"][1]["cash"], 0)
         self.assert_close(result["summary"]["final_value"], 200)
 
+    def test_portfolio_sp500_benchmark_uses_same_start_and_end_period(self):
+        portfolios = {
+            "Group": {
+                "summary": {
+                    "initial_capital": 100,
+                    "final_value": 200,
+                    "total_return_pct": 100,
+                    "annualized_return_pct": 41.42135623730952,
+                    "start_period": "2020-03",
+                    "end_period": "2022-03",
+                    "years": 2,
+                }
+            }
+        }
+
+        calculate_google_sheet_portfolios.add_sp500_benchmarks(
+            portfolios,
+            ["2020-01", "2020-03", "2022-03"],
+            [90, 100, 144],
+        )
+
+        summary = portfolios["Group"]["summary"]
+        self.assert_close(summary["sp500_final_value"], 144)
+        self.assert_close(summary["sp500_total_return_pct"], 44)
+        self.assert_close(summary["sp500_annualized_return_pct"], 20)
+        self.assert_close(summary["annualized_beat_pct"], 21.42135623730952)
+        self.assert_close(summary["total_beat_pct"], 56)
+
     def insert_quickfs_row(
         self,
         conn,

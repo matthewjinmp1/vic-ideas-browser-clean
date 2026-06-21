@@ -1,6 +1,7 @@
 import argparse
 import json
 import math
+import sqlite3
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -11,9 +12,14 @@ sys.path.insert(0, str(ROOT))
 
 from scripts.calculate_total_returns import (  # noqa: E402
     DEFAULT_QUICKFS_DB,
+    DEFAULT_VIC_DB,
     compound_annual_return,
     load_quickfs_series,
     normalize_ticker,
+)
+from scripts.calculate_sp500_benchmark import (  # noqa: E402
+    load_sp500_series,
+    value_at_or_before,
 )
 
 
@@ -27,6 +33,7 @@ def parse_args():
     )
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--quickfs-db", type=Path, default=DEFAULT_QUICKFS_DB)
+    parser.add_argument("--vic-db", type=Path, default=DEFAULT_VIC_DB)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--initial-capital", type=float, default=100.0)
     return parser.parse_args()
@@ -296,6 +303,61 @@ def simulate_groups(rows, quickfs, initial_capital=100.0):
     return results
 
 
+def add_sp500_benchmarks(portfolios, sp500_periods, sp500_values):
+    for result in portfolios.values():
+        summary = result["summary"]
+        start_period = summary.get("start_period")
+        end_period = summary.get("end_period")
+        initial_capital = summary.get("initial_capital")
+        years = summary.get("years")
+        if not start_period or not end_period or initial_capital is None:
+            summary.update(empty_benchmark())
+            continue
+
+        start_value = value_at_or_before(sp500_periods, sp500_values, start_period)
+        end_value = value_at_or_before(sp500_periods, sp500_values, end_period)
+        if start_value is None or end_value is None:
+            summary.update(empty_benchmark())
+            continue
+
+        benchmark_total_return_pct = (end_value / start_value - 1) * 100
+        benchmark_final_value = initial_capital * (end_value / start_value)
+        benchmark_annualized_return_pct = (
+            compound_annual_return(benchmark_total_return_pct, years)
+            if years
+            else None
+        )
+        annualized_return_pct = summary.get("annualized_return_pct")
+        summary.update(
+            {
+                "sp500_final_value": benchmark_final_value,
+                "sp500_total_return_pct": benchmark_total_return_pct,
+                "sp500_annualized_return_pct": benchmark_annualized_return_pct,
+                "annualized_beat_pct": (
+                    None
+                    if annualized_return_pct is None
+                    or benchmark_annualized_return_pct is None
+                    else annualized_return_pct - benchmark_annualized_return_pct
+                ),
+                "total_beat_pct": (
+                    None
+                    if summary.get("total_return_pct") is None
+                    else summary["total_return_pct"] - benchmark_total_return_pct
+                ),
+            }
+        )
+
+
+def empty_benchmark():
+    return {
+        "sp500_final_value": None,
+        "sp500_total_return_pct": None,
+        "sp500_annualized_return_pct": None,
+        "annualized_beat_pct": None,
+        "total_beat_pct": None,
+    }
+
+
 def scrub_float(value):
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
         return None
@@ -307,6 +369,10 @@ def main():
     payload = json.loads(args.input.read_text(encoding="utf-8"))
     quickfs = load_quickfs_series(args.quickfs_db)
     portfolios = simulate_groups(payload["rows"], quickfs, args.initial_capital)
+    conn = sqlite3.connect(args.vic_db)
+    sp500_periods, sp500_values = load_sp500_series(conn)
+    conn.close()
+    add_sp500_benchmarks(portfolios, sp500_periods, sp500_values)
     output = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "method": (
@@ -331,6 +397,8 @@ def main():
             f"{name}: final={summary['final_value']:.2f} "
             f"total={summary['total_return_pct']:.2f}% "
             f"annual={summary['annualized_return_pct']:.2f}% "
+            f"sp500_annual={summary['sp500_annualized_return_pct']:.2f}% "
+            f"beat={summary['annualized_beat_pct']:.2f}% "
             f"included={summary['ideas_included']} skipped={summary['ideas_skipped']}"
         )
     print(f"output={args.output}")

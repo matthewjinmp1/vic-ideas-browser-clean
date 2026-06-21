@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Frontend
+frontend/dist/
+frontend/node_modules/
+
+# Local data
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# System/editor
+.DS_Store
+.env
+.env.*

@@ -351,6 +351,7 @@ def add_sp500_benchmarks(portfolios, sp500_periods, sp500_values):
             sp500_periods,
             sp500_values,
         )
+    portfolios["_annual_return_table"] = annual_return_table(portfolios)
 
 
 def annual_return_rows(nav_rows, sp500_periods, sp500_values):
@@ -392,6 +393,85 @@ def annual_return_rows(nav_rows, sp500_periods, sp500_values):
     return rows
 
 
+def annual_return_table(portfolios):
+    group_names = [
+        "Highest Rated Overall",
+        "Highest Quality Rated",
+        "Highest Performance Rating",
+    ]
+    rows_by_group = {
+        name: {
+            row["year"]: row
+            for row in portfolios.get(name, {}).get("annual_return_rows", [])
+        }
+        for name in group_names
+    }
+    years = sorted(
+        {
+            year
+            for rows in rows_by_group.values()
+            for year, row in rows.items()
+            if row.get("portfolio_return_pct") is not None
+        }
+    )
+
+    table = []
+    for year in years:
+        sp500_return_pct = next(
+            (
+                rows_by_group[name][year]["sp500_return_pct"]
+                for name in group_names
+                if year in rows_by_group[name]
+                and rows_by_group[name][year].get("sp500_return_pct") is not None
+            ),
+            None,
+        )
+        table.append(
+            {
+                "year": year,
+                "highest_rated_overall_return_pct": value_or_none(
+                    rows_by_group["Highest Rated Overall"],
+                    year,
+                    "portfolio_return_pct",
+                ),
+                "highest_rated_overall_beat_pct": value_or_none(
+                    rows_by_group["Highest Rated Overall"],
+                    year,
+                    "annual_beat_pct",
+                ),
+                "highest_quality_rated_return_pct": value_or_none(
+                    rows_by_group["Highest Quality Rated"],
+                    year,
+                    "portfolio_return_pct",
+                ),
+                "highest_quality_rated_beat_pct": value_or_none(
+                    rows_by_group["Highest Quality Rated"],
+                    year,
+                    "annual_beat_pct",
+                ),
+                "highest_performance_rating_return_pct": value_or_none(
+                    rows_by_group["Highest Performance Rating"],
+                    year,
+                    "portfolio_return_pct",
+                ),
+                "highest_performance_rating_beat_pct": value_or_none(
+                    rows_by_group["Highest Performance Rating"],
+                    year,
+                    "annual_beat_pct",
+                ),
+                "sp500_return_pct": sp500_return_pct,
+            }
+        )
+    return table
+
+
+def value_or_none(rows_by_year, year, key):
+    row = rows_by_year.get(year)
+    if not row:
+        return None
+    return row.get(key)
+
+
 def empty_benchmark():
     return {
         "sp500_final_value": None,
@@ -417,6 +497,7 @@ def main():
     sp500_periods, sp500_values = load_sp500_series(conn)
     conn.close()
     add_sp500_benchmarks(portfolios, sp500_periods, sp500_values)
+    annual_table = portfolios.pop("_annual_return_table")
     output = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "method": (
@@ -427,6 +508,7 @@ def main():
             "until the next calculable idea enters."
         ),
         "portfolios": portfolios,
+        "annual_return_table": annual_table,
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

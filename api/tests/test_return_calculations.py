@@ -453,6 +453,64 @@ class ReturnPipelineTests(unittest.TestCase):
         self.assert_close(rows[1]["sp500_return_pct"], 10)
         self.assert_close(rows[1]["annual_beat_pct"], 55)
 
+    def test_portfolio_annual_return_table_has_one_row_per_year(self):
+        portfolios = {
+            "Highest Rated Overall": {
+                "annual_return_rows": [
+                    {
+                        "year": "2020",
+                        "portfolio_return_pct": None,
+                        "sp500_return_pct": None,
+                        "annual_beat_pct": None,
+                    },
+                    {
+                        "year": "2021",
+                        "portfolio_return_pct": 20,
+                        "sp500_return_pct": 10,
+                        "annual_beat_pct": 10,
+                    },
+                ]
+            },
+            "Highest Quality Rated": {
+                "annual_return_rows": [
+                    {
+                        "year": "2021",
+                        "portfolio_return_pct": 30,
+                        "sp500_return_pct": 10,
+                        "annual_beat_pct": 20,
+                    },
+                    {
+                        "year": "2022",
+                        "portfolio_return_pct": 5,
+                        "sp500_return_pct": -5,
+                        "annual_beat_pct": 10,
+                    },
+                ]
+            },
+            "Highest Performance Rating": {
+                "annual_return_rows": [
+                    {
+                        "year": "2022",
+                        "portfolio_return_pct": 7,
+                        "sp500_return_pct": -5,
+                        "annual_beat_pct": 12,
+                    }
+                ]
+            },
+        }
+
+        table = calculate_google_sheet_portfolios.annual_return_table(portfolios)
+
+        self.assertEqual([row["year"] for row in table], ["2021", "2022"])
+        self.assert_close(table[0]["highest_rated_overall_return_pct"], 20)
+        self.assert_close(table[0]["highest_quality_rated_return_pct"], 30)
+        self.assertIsNone(table[0]["highest_performance_rating_return_pct"])
+        self.assert_close(table[0]["sp500_return_pct"], 10)
+        self.assertIsNone(table[1]["highest_rated_overall_return_pct"])
+        self.assert_close(table[1]["highest_quality_rated_beat_pct"], 10)
+        self.assert_close(table[1]["highest_performance_rating_beat_pct"], 12)
+        self.assert_close(table[1]["sp500_return_pct"], -5)
+
     def test_expanding_equal_weight_portfolio_golden_edge_case_scenario(self):
         quickfs = {
             "AAA": [

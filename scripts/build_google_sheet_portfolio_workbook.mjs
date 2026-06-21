@@ -175,31 +175,31 @@ styleSheet(constituents, constituentRows.length, constituentRows[0].length, [], 
 const annual = workbook.worksheets.add("Annual Returns");
 const annualRows = [
   [
-    "Portfolio",
     "Year",
-    "Period",
-    "Portfolio Return",
+    "Overall Return",
+    "Overall Beat",
+    "Quality Return",
+    "Quality Beat",
+    "Performance Return",
+    "Performance Beat",
     "S&P 500 TR Return",
-    "Annual Beat",
-    "Portfolio Value",
   ],
 ];
-for (const [name, result] of Object.entries(payload.portfolios)) {
-  for (const row of result.annual_return_rows ?? []) {
-    annualRows.push([
-      name,
-      row.year,
-      row.period,
-      pct(row.portfolio_return_pct),
-      pct(row.sp500_return_pct),
-      pct(row.annual_beat_pct),
-      row.portfolio_value,
-    ]);
-  }
+for (const row of payload.annual_return_table ?? []) {
+  annualRows.push([
+    row.year,
+    pct(row.highest_rated_overall_return_pct),
+    pct(row.highest_rated_overall_beat_pct),
+    pct(row.highest_quality_rated_return_pct),
+    pct(row.highest_quality_rated_beat_pct),
+    pct(row.highest_performance_rating_return_pct),
+    pct(row.highest_performance_rating_beat_pct),
+    pct(row.sp500_return_pct),
+  ]);
 }
 writeMatrix(annual, annualRows);
-styleSheet(annual, annualRows.length, annualRows[0].length, [3, 4, 5], [6]);
-[30, 10, 12, 16, 16, 14, 16].forEach((width, index) => {
+styleSheet(annual, annualRows.length, annualRows[0].length, [1, 2, 3, 4, 5, 6, 7]);
+[10, 16, 14, 16, 14, 18, 16, 16].forEach((width, index) => {
   annual.getRangeByIndexes(0, index, annualRows.length, 1).format.columnWidth = width;
 });
 
@@ -221,7 +221,7 @@ const noteRows = [
   ],
   [
     "Annual Returns",
-    "The Annual Returns tab uses the last available portfolio NAV period in each calendar year. The first live year is blank because there is no prior year-end portfolio value.",
+    "The Annual Returns tab uses one row per calendar year. It uses each portfolio's last available NAV period in that year and omits first live years with no prior year-end return.",
   ],
   ["Entry", "A position enters at the first available local QuickFS period on or after the idea month."],
   [

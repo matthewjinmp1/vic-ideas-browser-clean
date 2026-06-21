@@ -1,4 +1,5 @@
 import argparse
+import csv
 import html
 import math
 import sys
@@ -77,6 +78,13 @@ def write_tsv(summaries, path):
                 )
             )
     path.write_text("\n".join(lines) + "\n")
+
+
+def write_csv_from_tsv(tsv_path, csv_path):
+    with tsv_path.open(newline="") as source, csv_path.open("w", newline="") as target:
+        reader = csv.reader(source, delimiter="\t")
+        writer = csv.writer(target)
+        writer.writerows(reader)
 
 
 def nice_step(raw_step):
@@ -221,11 +229,14 @@ def main():
     quarters = list(range(args.min_quarters, args.max_quarters + 1))
     summaries = calculate_forward_beat_summaries(args.vic_db, args.quickfs_db, quarters)
     tsv_path = args.output_dir / "forward_beat_curves.tsv"
+    csv_path = args.output_dir / "forward_beat_curves.csv"
     svg_path = args.output_dir / "forward_beat_curves.svg"
     write_tsv(summaries, tsv_path)
+    write_csv_from_tsv(tsv_path, csv_path)
     write_svg(summaries, svg_path)
 
     print(f"wrote {tsv_path}")
+    print(f"wrote {csv_path}")
     print(f"wrote {svg_path}")
     print()
     final_years = summaries[-1]["forward_quarters"] / 4

@@ -172,6 +172,37 @@ styleSheet(constituents, constituentRows.length, constituentRows[0].length, [], 
   constituents.getRangeByIndexes(0, index, constituentRows.length, 1).format.columnWidth = width;
 });
 
+const annual = workbook.worksheets.add("Annual Returns");
+const annualRows = [
+  [
+    "Portfolio",
+    "Year",
+    "Period",
+    "Portfolio Return",
+    "S&P 500 TR Return",
+    "Annual Beat",
+    "Portfolio Value",
+  ],
+];
+for (const [name, result] of Object.entries(payload.portfolios)) {
+  for (const row of result.annual_return_rows ?? []) {
+    annualRows.push([
+      name,
+      row.year,
+      row.period,
+      pct(row.portfolio_return_pct),
+      pct(row.sp500_return_pct),
+      pct(row.annual_beat_pct),
+      row.portfolio_value,
+    ]);
+  }
+}
+writeMatrix(annual, annualRows);
+styleSheet(annual, annualRows.length, annualRows[0].length, [3, 4, 5], [6]);
+[30, 10, 12, 16, 16, 14, 16].forEach((width, index) => {
+  annual.getRangeByIndexes(0, index, annualRows.length, 1).format.columnWidth = width;
+});
+
 const notes = workbook.worksheets.add("Method Notes");
 const noteRows = [
   ["Topic", "Note"],
@@ -187,6 +218,10 @@ const noteRows = [
   [
     "Benchmark",
     "S&P 500 Total Return is measured from the portfolio's first calculable start period to its ending period. Beat is portfolio return minus S&P 500 Total Return over that same window.",
+  ],
+  [
+    "Annual Returns",
+    "The Annual Returns tab uses the last available portfolio NAV period in each calendar year. The first live year is blank because there is no prior year-end portfolio value.",
   ],
   ["Entry", "A position enters at the first available local QuickFS period on or after the idea month."],
   [

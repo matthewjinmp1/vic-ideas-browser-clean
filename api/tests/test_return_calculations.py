@@ -433,6 +433,26 @@ class ReturnPipelineTests(unittest.TestCase):
         self.assert_close(summary["annualized_beat_pct"], 21.42135623730952)
         self.assert_close(summary["total_beat_pct"], 56)
 
+    def test_portfolio_annual_return_rows_use_year_end_nav_and_sp500(self):
+        rows = calculate_google_sheet_portfolios.annual_return_rows(
+            [
+                {"period": "2020-06", "portfolio_value": 100},
+                {"period": "2020-12", "portfolio_value": 120},
+                {"period": "2021-03", "portfolio_value": 132},
+                {"period": "2021-12", "portfolio_value": 198},
+            ],
+            ["2020-06", "2020-12", "2021-12"],
+            [1000, 1100, 1210],
+        )
+
+        self.assertEqual(rows[0]["year"], "2020")
+        self.assertIsNone(rows[0]["portfolio_return_pct"])
+        self.assertEqual(rows[1]["year"], "2021")
+        self.assertEqual(rows[1]["period"], "2021-12")
+        self.assert_close(rows[1]["portfolio_return_pct"], 65)
+        self.assert_close(rows[1]["sp500_return_pct"], 10)
+        self.assert_close(rows[1]["annual_beat_pct"], 55)
+
     def test_expanding_equal_weight_portfolio_golden_edge_case_scenario(self):
         quickfs = {
             "AAA": [

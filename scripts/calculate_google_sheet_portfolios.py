@@ -346,6 +346,50 @@ def add_sp500_benchmarks(portfolios, sp500_periods, sp500_values):
                 ),
             }
         )
+        result["annual_return_rows"] = annual_return_rows(
+            result.get("nav_rows", []),
+            sp500_periods,
+            sp500_values,
+        )
+
+
+def annual_return_rows(nav_rows, sp500_periods, sp500_values):
+    by_year = {}
+    for row in nav_rows:
+        by_year[row["period"][:4]] = row
+
+    rows = []
+    previous_portfolio_value = None
+    previous_sp500_value = None
+    for year in sorted(by_year):
+        row = by_year[year]
+        period = row["period"]
+        portfolio_value = row["portfolio_value"]
+        sp500_value = value_at_or_before(sp500_periods, sp500_values, period)
+        if previous_portfolio_value is None or previous_sp500_value is None:
+            portfolio_return_pct = None
+            sp500_return_pct = None
+            annual_beat_pct = None
+        else:
+            portfolio_return_pct = (
+                portfolio_value / previous_portfolio_value - 1
+            ) * 100
+            sp500_return_pct = (sp500_value / previous_sp500_value - 1) * 100
+            annual_beat_pct = portfolio_return_pct - sp500_return_pct
+
+        rows.append(
+            {
+                "year": year,
+                "period": period,
+                "portfolio_return_pct": portfolio_return_pct,
+                "sp500_return_pct": sp500_return_pct,
+                "annual_beat_pct": annual_beat_pct,
+                "portfolio_value": portfolio_value,
+            }
+        )
+        previous_portfolio_value = portfolio_value
+        previous_sp500_value = sp500_value
+    return rows
 
 
 def empty_benchmark():

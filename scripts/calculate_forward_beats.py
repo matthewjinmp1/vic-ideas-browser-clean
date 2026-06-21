@@ -71,6 +71,8 @@ def calculate_window_return(series, start, forward_quarters):
     return {
         "start_period": start_period,
         "end_period": end_period,
+        "start_price": start_price,
+        "end_price": end_price,
         "dividends": dividends,
         "stock_total_return_pct": stock_total_return,
         "periods_held": end - start,

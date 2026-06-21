@@ -12,6 +12,7 @@ frontend/node_modules/
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+analysis/golden_return_sample.tsv
 
 # System/editor
 .DS_Store

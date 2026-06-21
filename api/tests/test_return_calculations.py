@@ -1,5 +1,6 @@
 import math
 import io
+import csv
 import json
 import sqlite3
 import sys
@@ -18,8 +19,14 @@ from scripts.calculate_sp500_benchmark import (
 )
 from scripts.calculate_sp500_benchmark import value_at_or_before
 from scripts.calculate_total_returns import (
+    DEFAULT_QUICKFS_DB,
+    DEFAULT_VIC_DB,
     calculate_return,
     compound_annual_return as idea_compound_annual_return,
+    find_series,
+    idea_month,
+    load_quickfs_series,
+    start_index,
 )
 
 
@@ -486,6 +493,130 @@ class ReturnPipelineTests(unittest.TestCase):
             self.assert_close(winner_long["time_weighted_annual_beat_pct"], aaa_beat)
             self.assertEqual(winner_short["total_ideas"], 1)
             self.assertEqual(winner_short["with_beat"], 1)
+
+    def test_golden_return_sample_matches_raw_local_inputs(self):
+        root = Path(__file__).resolve().parents[2]
+        golden_path = root / "analysis" / "golden_return_sample.tsv"
+        if not golden_path.exists():
+            self.skipTest("golden return sample file is not available")
+        if not DEFAULT_VIC_DB.exists() or not DEFAULT_QUICKFS_DB.exists():
+            self.skipTest("local VIC or QuickFS database is not available")
+
+        quickfs = load_quickfs_series(DEFAULT_QUICKFS_DB)
+        conn = sqlite3.connect(DEFAULT_VIC_DB)
+        sp_periods, sp_values = calculate_sp500_benchmark.load_sp500_series(conn)
+
+        with golden_path.open(newline="") as handle:
+            rows = list(csv.DictReader(handle, delimiter="\t"))
+
+        self.assertEqual(len(rows), 20)
+        for expected in rows:
+            with self.subTest(
+                ticker=expected["ticker"],
+                forward_quarters=expected["forward_quarters"],
+            ):
+                idea = conn.execute(
+                    """
+                    SELECT id, company_id, date, COALESCE(is_short, 0),
+                           COALESCE(is_contest_winner, 0)
+                    FROM ideas
+                    WHERE id = ?
+                    """,
+                    (expected["idea_id"],),
+                ).fetchone()
+                self.assertIsNotNone(idea)
+                _idea_id, ticker, idea_date, is_short, is_winner = idea
+
+                matched_ticker, series = find_series(quickfs, ticker)
+                self.assertEqual(matched_ticker, expected["matched_ticker"])
+                start = start_index(series, idea_month(idea_date))
+                self.assertIsNotNone(start)
+                result = calculate_forward_beats.calculate_window_return(
+                    series,
+                    start,
+                    int(expected["forward_quarters"]),
+                )
+
+                stock_total = result["stock_total_return_pct"]
+                idea_total = -stock_total if bool(is_short) else stock_total
+                idea_annual = idea_compound_annual_return(
+                    idea_total,
+                    result["years_held"],
+                )
+                sp_start = value_at_or_before(
+                    sp_periods,
+                    sp_values,
+                    result["start_period"],
+                )
+                sp_end = value_at_or_before(
+                    sp_periods,
+                    sp_values,
+                    result["end_period"],
+                )
+                benchmark_total = (sp_end / sp_start - 1) * 100
+                benchmark_annual = benchmark_compound_annual_return(
+                    benchmark_total,
+                    result["years_held"],
+                )
+                excess_annual = (
+                    None
+                    if idea_annual is None or benchmark_annual is None
+                    else idea_annual - benchmark_annual
+                )
+
+                self.assertEqual(ticker, expected["ticker"])
+                self.assertEqual(str(idea_date), expected["idea_date"])
+                self.assertEqual(int(bool(is_short)), int(expected["is_short"]))
+                self.assertEqual(
+                    int(bool(is_winner)),
+                    int(expected["is_contest_winner"]),
+                )
+                self.assertEqual(result["start_period"], expected["start_period"])
+                self.assertEqual(result["end_period"], expected["end_period"])
+                self.assertEqual(result["periods_held"], int(expected["periods_held"]))
+                self.assert_golden_close(result["years_held"], expected["years_held"])
+                self.assert_golden_close(result["start_price"], expected["start_price"])
+                self.assert_golden_close(result["end_price"], expected["end_price"])
+                self.assert_golden_close(result["dividends"], expected["dividends"])
+                self.assert_golden_close(
+                    result["stock_total_return_pct"],
+                    expected["stock_total_return_pct"],
+                )
+                self.assert_golden_close(
+                    idea_total,
+                    expected["idea_total_return_pct"],
+                )
+                self.assert_golden_close(
+                    idea_annual,
+                    expected["idea_annualized_return_pct"],
+                )
+                self.assert_golden_close(sp_start, expected["sp500_start_value"])
+                self.assert_golden_close(sp_end, expected["sp500_end_value"])
+                self.assert_golden_close(
+                    benchmark_total,
+                    expected["benchmark_total_return_pct"],
+                )
+                self.assert_golden_close(
+                    benchmark_annual,
+                    expected["benchmark_annualized_return_pct"],
+                )
+                self.assert_golden_close(
+                    excess_annual,
+                    expected["excess_annualized_return_pct"],
+                )
+        conn.close()
+
+    def assert_golden_close(self, actual, expected_text):
+        if expected_text == "":
+            self.assertIsNone(actual)
+            return
+
+        self.assertIsNotNone(actual)
+        expected = float(expected_text)
+        self.assertTrue(
+            math.isclose(float(actual), expected, rel_tol=1e-9, abs_tol=1e-9),
+            f"{actual} != {expected}",
+        )
 
 
 if __name__ == "__main__":

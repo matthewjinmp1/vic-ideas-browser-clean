@@ -20,9 +20,15 @@ repo data plus local QuickFS/SP500-derived analytics. Do not scrape VIC from thi
 The runner checks:
 
 - return and beat calculation unit tests
+- 20-row golden return sample against local raw VIC/QuickFS/S&P inputs
 - forward beat calculator CLI
 - frontend TypeScript
 - frontend production build
+
+The golden sample is generated locally at `analysis/golden_return_sample.tsv`.
+It locks down a small inspected mix of long, short, contest-winner, and
+partial-history ideas for 1-year and 5-year forward windows. The TSV is ignored
+by Git because it contains raw values derived from local datasets.
 
 ## Run API
 

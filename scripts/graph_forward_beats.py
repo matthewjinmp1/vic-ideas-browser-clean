@@ -50,6 +50,8 @@ def write_tsv(summaries, path):
         "with_beat",
         "avg_years_used",
         "time_weighted_annual_beat_pct",
+        "time_weighted_idea_annual_return_pct",
+        "time_weighted_benchmark_annual_return_pct",
         "simple_avg_annual_beat_pct",
         "avg_idea_annual_return_pct",
         "avg_benchmark_annual_return_pct",
@@ -71,6 +73,8 @@ def write_tsv(summaries, path):
                         str(int(group["with_beat"])),
                         fmt(group["avg_years_used"]),
                         fmt(group["time_weighted_annual_beat_pct"]),
+                        fmt(group["time_weighted_idea_annual_return_pct"]),
+                        fmt(group["time_weighted_benchmark_annual_return_pct"]),
                         fmt(group["simple_avg_annual_beat_pct"]),
                         fmt(group["avg_idea_annual_return_pct"]),
                         fmt(group["avg_benchmark_annual_return_pct"]),
@@ -128,7 +132,7 @@ def write_wide_csv(summaries, path):
                         for group in group_rows
                     ],
                     *[
-                        fmt(group["avg_idea_annual_return_pct"])
+                        fmt(group["time_weighted_idea_annual_return_pct"])
                         for group in group_rows
                     ],
                     *[int(group["with_beat"]) for group in group_rows],

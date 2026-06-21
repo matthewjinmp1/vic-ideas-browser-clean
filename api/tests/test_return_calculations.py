@@ -483,6 +483,11 @@ class ReturnPipelineTests(unittest.TestCase):
             self.assertEqual(long_group["with_beat"], 2)
             self.assert_close(long_group["avg_years_used"], 0.75)
             self.assert_close(long_group["time_weighted_annual_beat_pct"], weighted_long)
+            self.assert_close(
+                long_group["time_weighted_annual_beat_pct"],
+                long_group["time_weighted_idea_annual_return_pct"]
+                - long_group["time_weighted_benchmark_annual_return_pct"],
+            )
 
             self.assertEqual(short_group["total_ideas"], 1)
             self.assertEqual(short_group["with_beat"], 1)

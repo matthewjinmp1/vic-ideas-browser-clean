@@ -52,6 +52,8 @@ def empty_group_stats():
         "with_beat": 0,
         "year_weight_sum": 0.0,
         "weighted_beat_sum": 0.0,
+        "weighted_idea_annual_sum": 0.0,
+        "weighted_benchmark_annual_sum": 0.0,
         "simple_beat_sum": 0.0,
         "idea_annual_sum": 0.0,
         "benchmark_annual_sum": 0.0,
@@ -85,6 +87,8 @@ def add_result(stats, scope, side, beat, years_held, idea_annual, benchmark_annu
     group["with_beat"] += 1
     group["year_weight_sum"] += years_held
     group["weighted_beat_sum"] += beat * years_held
+    group["weighted_idea_annual_sum"] += idea_annual * years_held
+    group["weighted_benchmark_annual_sum"] += benchmark_annual * years_held
     group["simple_beat_sum"] += beat
     group["idea_annual_sum"] += idea_annual
     group["benchmark_annual_sum"] += benchmark_annual
@@ -98,6 +102,8 @@ def finalize_group(group):
             **group,
             "avg_years_used": None,
             "time_weighted_annual_beat_pct": None,
+            "time_weighted_idea_annual_return_pct": None,
+            "time_weighted_benchmark_annual_return_pct": None,
             "simple_avg_annual_beat_pct": None,
             "avg_idea_annual_return_pct": None,
             "avg_benchmark_annual_return_pct": None,
@@ -107,6 +113,12 @@ def finalize_group(group):
         **group,
         "avg_years_used": year_weight_sum / with_beat,
         "time_weighted_annual_beat_pct": group["weighted_beat_sum"] / year_weight_sum,
+        "time_weighted_idea_annual_return_pct": group["weighted_idea_annual_sum"]
+        / year_weight_sum,
+        "time_weighted_benchmark_annual_return_pct": group[
+            "weighted_benchmark_annual_sum"
+        ]
+        / year_weight_sum,
         "simple_avg_annual_beat_pct": group["simple_beat_sum"] / with_beat,
         "avg_idea_annual_return_pct": group["idea_annual_sum"] / with_beat,
         "avg_benchmark_annual_return_pct": group["benchmark_annual_sum"] / with_beat,
@@ -257,8 +269,8 @@ def main():
     print()
     print(
         "Scope\tSide\tTotal ideas\tWith beat\tAvg years used\t"
-        "Time-weighted annual beat\tSimple avg annual beat\t"
-        "Avg idea annual\tAvg S&P annual"
+        "Time-weighted annual beat\tTime-weighted idea annual\t"
+        "Time-weighted S&P annual"
     )
     for scope, side in GROUPS:
         group = summary["groups"][(scope, side)]
@@ -267,9 +279,8 @@ def main():
             f"{int(group['with_beat']):,}\t"
             f"{format_years(group['avg_years_used'])}\t"
             f"{format_pct(group['time_weighted_annual_beat_pct'])}\t"
-            f"{format_pct(group['simple_avg_annual_beat_pct'])}\t"
-            f"{format_pct(group['avg_idea_annual_return_pct'])}\t"
-            f"{format_pct(group['avg_benchmark_annual_return_pct'])}"
+            f"{format_pct(group['time_weighted_idea_annual_return_pct'])}\t"
+            f"{format_pct(group['time_weighted_benchmark_annual_return_pct'])}"
         )
 
     print()

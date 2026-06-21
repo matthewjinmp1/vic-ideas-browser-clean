@@ -1,5 +1,6 @@
 import argparse
 import html
+import math
 import sys
 from pathlib import Path
 
@@ -78,13 +79,36 @@ def write_tsv(summaries, path):
     path.write_text("\n".join(lines) + "\n")
 
 
-def axis_ticks(min_value, max_value, step):
-    first = int(min_value // step) * step
+def nice_step(raw_step):
+    if raw_step <= 0:
+        return 1
+
+    magnitude = 10 ** math.floor(math.log10(raw_step))
+    scaled = raw_step / magnitude
+    if scaled <= 1:
+        nice = 1
+    elif scaled <= 2:
+        nice = 2
+    elif scaled <= 5:
+        nice = 5
+    else:
+        nice = 10
+    return nice * magnitude
+
+
+def axis_ticks(min_value, max_value, max_ticks=6):
+    step = nice_step((max_value - min_value) / max(1, max_ticks - 1))
+    first = math.ceil(min_value / step) * step
+    ticks = []
     tick = first
-    while tick <= max_value + step:
-        if tick >= min_value:
-            yield tick
+    while tick <= max_value + (step * 0.5):
+        ticks.append(tick)
         tick += step
+
+    if min_value < 0 < max_value and all(abs(tick) > 1e-9 for tick in ticks):
+        ticks.append(0)
+
+    return sorted(ticks)
 
 
 def write_svg(summaries, path):
@@ -131,7 +155,7 @@ def write_svg(summaries, path):
         f'<text x="{left}" y="58" font-family="Arial, sans-serif" font-size="13" fill="#5b6572">Time-weighted annualized outperformance, windows from 1 quarter to 5 years</text>',
     ]
 
-    for tick in axis_ticks(y_min, y_max, 10):
+    for tick in axis_ticks(y_min, y_max):
         y = sy(tick)
         stroke = "#c9c2b8" if tick == 0 else "#e3ded6"
         width_attr = "1.5" if tick == 0 else "1"
